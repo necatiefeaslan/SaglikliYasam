@@ -6,6 +6,8 @@
     <string name="nav_header_subtitle">android.studio@android.com</string>
     <string name="nav_header_desc">Navigation header</string>
     <string name="action_settings">Ayarlar</string>
+    <string name="action_logout">Çıkış Yap</string>
+
 
     <string name="menu_home">Adım Takibi</string>
     <string name="menu_gallery">Profil Fotoğrafı Ekle</string>

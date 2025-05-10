@@ -1,5 +1,6 @@
 package tr.com.necatiefeaslan.saglikliyasam
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -13,11 +14,22 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Giriş yapılıp yapılmadığını ilk açılışta kontrol et
+        val auth = FirebaseAuth.getInstance()
+        val currentUser = auth.currentUser
+        val sharedPreferences = getSharedPreferences("UserSession", Context.MODE_PRIVATE)
+        val isLoggedIn = sharedPreferences.getBoolean("isLoggedIn", false)
+
+        if (currentUser != null && isLoggedIn) {
+            startActivity(Intent(this, MainActivity::class.java))
+            finish() // LoginActivity'yi kapat
+            return // Metodun geri kalanını çalıştırmayı durdur
+        }
+
         supportActionBar?.hide() // ActionBar'ı gizle
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-        auth = FirebaseAuth.getInstance()
 
         binding.loginButton.setOnClickListener {
             val email = binding.emailEditText.text.toString().trim()
@@ -51,6 +63,12 @@ class LoginActivity : AppCompatActivity() {
             auth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this) { task ->
                     if (task.isSuccessful) {
+                        // Giriş başarılı, SharedPreferences'e kaydet
+                        val sharedPreferences = getSharedPreferences("UserSession", Context.MODE_PRIVATE)
+                        val editor = sharedPreferences.edit()
+                        editor.putBoolean("isLoggedIn", true)  // Oturum açma durumunu kaydet
+                        editor.apply()
+
                         startActivity(Intent(this, MainActivity::class.java))
                         finish()
                     } else {
@@ -64,4 +82,4 @@ class LoginActivity : AppCompatActivity() {
             startActivity(Intent(this, RegisterActivity::class.java))
         }
     }
-} 
+}

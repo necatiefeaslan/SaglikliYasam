@@ -1,7 +1,10 @@
 package tr.com.necatiefeaslan.saglikliyasam
 
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
+import android.view.MenuItem
 import android.widget.ImageView
 import android.widget.TextView
 import com.google.android.material.snackbar.Snackbar
@@ -26,6 +29,21 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Giriş yapılıp yapılmadığını kontrol et
+        val auth = FirebaseAuth.getInstance()
+        val currentUser = auth.currentUser
+        val sharedPreferences = getSharedPreferences("UserSession", Context.MODE_PRIVATE)
+        val isLoggedIn = sharedPreferences.getBoolean("isLoggedIn", false)
+
+        if (currentUser != null && isLoggedIn) {
+            // Kullanıcı giriş yapmışsa herhangi bir şey yapmaya gerek yok, MainActivity açılacak.
+        } else {
+            // Kullanıcı giriş yapmamışsa veya SharedPreferences'ta giriş bilgisi yoksa LoginActivity'ye yönlendir
+            val intent = Intent(this, LoginActivity::class.java)
+            startActivity(intent)
+            finish() // MainActivity'yi kapat
+        }
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -40,13 +58,13 @@ class MainActivity : AppCompatActivity() {
         val drawerLayout: DrawerLayout = binding.drawerLayout
         val navView: NavigationView = binding.navView
         val navController = findNavController(R.id.nav_host_fragment_content_main)
-        
+
         appBarConfiguration = AppBarConfiguration(
             setOf(
                 R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow
             ), drawerLayout
         )
-        
+
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)
 
@@ -56,7 +74,6 @@ class MainActivity : AppCompatActivity() {
         val textViewName = headerView.findViewById<TextView>(R.id.textViewName)
         val textViewEmail = headerView.findViewById<TextView>(R.id.textViewEmail)
 
-        val auth = FirebaseAuth.getInstance()
         val db = FirebaseFirestore.getInstance()
         val userId = auth.currentUser?.uid
         if (userId != null) {
@@ -88,6 +105,29 @@ class MainActivity : AppCompatActivity() {
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.main, menu)
         return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.action_logout -> {
+                // Firebase ile çıkış yap
+                FirebaseAuth.getInstance().signOut()
+
+                // Çıkış yaptıktan sonra, LoginActivity'ye yönlendir
+                val intent = Intent(this, LoginActivity::class.java)
+                startActivity(intent)
+
+                // SharedPreferences'teki giriş bilgisini sıfırla
+                val sharedPreferences = getSharedPreferences("UserSession", Context.MODE_PRIVATE)
+                val editor = sharedPreferences.edit()
+                editor.putBoolean("isLoggedIn", false)
+                editor.apply()
+
+                finish()  // MainActivity'yi kapatıyoruz
+                return true
+            }
+            else -> return super.onOptionsItemSelected(item)
+        }
     }
 
     override fun onSupportNavigateUp(): Boolean {
