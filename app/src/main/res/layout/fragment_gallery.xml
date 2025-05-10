@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp">
+
+    <ImageView
+        android:id="@+id/imageViewProfileGallery"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:src="@drawable/ic_person"
+        android:background="@drawable/circle_bg"
+        android:scaleType="centerCrop"
+        android:contentDescription="Profil Fotoğrafı" />
+
+    <Button
+        android:id="@+id/buttonSelectPhoto"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Fotoğraf Seç"
+        android:layout_marginTop="24dp"/>
+
+    <Button
+        android:id="@+id/buttonSavePhoto"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Fotoğrafı Kaydet"
+        android:layout_marginTop="16dp"/>
+
+</LinearLayout>
