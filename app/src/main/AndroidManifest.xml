@@ -38,7 +38,7 @@
             android:theme="@style/Theme.SaglikliYasam.NoActionBar">
         </activity>
 
-        <receiver android:name=".util.BatteryLevelReceiver">
+        <receiver android:name=".util.BatteryLevelReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BATTERY_CHANGED"/>
             </intent-filter>
