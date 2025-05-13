@@ -21,6 +21,11 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.bumptech.glide.Glide
 import tr.com.necatiefeaslan.saglikliyasam.ui.changepassword.ChangePasswordFragment
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.ExistingPeriodicWorkPolicy
+import tr.com.necatiefeaslan.saglikliyasam.util.SuHatirlaticiWorker
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
@@ -101,6 +106,14 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
         }
+
+        // Su hatırlatıcı bildirimi için WorkManager başlat
+        val workRequest = PeriodicWorkRequestBuilder<SuHatirlaticiWorker>(1, TimeUnit.HOURS).build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "su_hatirlatici",
+            ExistingPeriodicWorkPolicy.REPLACE,
+            workRequest
+        )
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
