@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -33,6 +34,7 @@ class SlideshowFragment : Fragment() {
     private val auth = FirebaseAuth.getInstance()
     private val userId get() = auth.currentUser?.uid ?: ""
     private var gunlukHedef = 2000 // Varsayılan hedef (ml)
+    private var seciliBardakMiktari = 100
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -51,6 +53,41 @@ class SlideshowFragment : Fragment() {
 
         binding.buttonSuEkle.setOnClickListener { showSuEkleDialog() }
         binding.buttonHedefGuncelle.setOnClickListener { showHedefGuncelleDialog() }
+
+        // Seçili bardakla ekle butonu bardak türü kartlarının altına
+        val bardakBtnPlaceholder = binding.root.findViewById<FrameLayout>(R.id.placeholderBardakBtn)
+        val seciliBardakBtn = com.google.android.material.button.MaterialButton(requireContext())
+        seciliBardakBtn.layoutParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT
+        )
+        seciliBardakBtn.text = "Seçili bardakla ekle (${seciliBardakMiktari} ml)"
+        seciliBardakBtn.setOnClickListener {
+            ekleSu(seciliBardakMiktari)
+        }
+        bardakBtnPlaceholder.removeAllViews()
+        bardakBtnPlaceholder.addView(seciliBardakBtn)
+
+        // Bardak türü kartlarına tıklama
+        val bardaklar = listOf(
+            Pair(binding.root.findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardBardak100), 100),
+            Pair(binding.root.findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardBardak200), 200),
+            Pair(binding.root.findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardBardak300), 300),
+            Pair(binding.root.findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardBardak500), 500)
+        )
+        bardaklar.forEach { (card, miktar) ->
+            card.setOnClickListener {
+                seciliBardakMiktari = miktar
+                // Vurgulama
+                bardaklar.forEach { (c, _) -> c.strokeWidth = 0 }
+                card.strokeWidth = 8
+                card.strokeColor = resources.getColor(R.color.purple_500, null)
+                seciliBardakBtn.text = "Seçili bardakla ekle (${seciliBardakMiktari} ml)"
+            }
+        }
+        // Varsayılan vurgulama
+        bardaklar[0].first.strokeWidth = 8
+        bardaklar[0].first.strokeColor = resources.getColor(R.color.purple_500, null)
     }
 
     private fun getGunlukHedef() {
@@ -173,42 +210,43 @@ class SlideshowFragment : Fragment() {
     private fun getHaftalikOzet() {
         val calendar = Calendar.getInstance()
         val days = arrayOf("Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz")
-        val haftalikData = mutableListOf<Pair<String, Int>>()
         val userId = this.userId
-        val today = calendar.time
         calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
         val monday = calendar.time
         db.collection("su")
             .whereEqualTo("kullaniciId", userId)
             .get()
             .addOnSuccessListener { docs ->
-                val gunlukMap = mutableMapOf<String, Int>()
+                val gunlukMap = mutableMapOf<String, Pair<Int, Int>>() // tarih -> Pair(miktar, hedefsu)
                 for (i in 0..6) {
                     val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(monday.time + i * 24 * 60 * 60 * 1000))
-                    gunlukMap[date] = 0
+                    gunlukMap[date] = Pair(0, 0)
                 }
                 for (doc in docs) {
                     val su = doc.toObject(Su::class.java)
                     if (gunlukMap.containsKey(su.tarih)) {
-                        gunlukMap[su.tarih] = gunlukMap[su.tarih]!! + su.miktar
+                        gunlukMap[su.tarih] = Pair(
+                            gunlukMap[su.tarih]!!.first + su.miktar,
+                            su.hedefsu
+                        )
                     }
                 }
                 updateHaftalikOzetUI(gunlukMap, days)
             }
     }
 
-    private fun updateHaftalikOzetUI(gunlukMap: Map<String, Int>, days: Array<String>) {
+    private fun updateHaftalikOzetUI(gunlukMap: Map<String, Pair<Int, Int>>, days: Array<String>) {
         binding.layoutHaftalikOzet.removeAllViews()
         val calendar = Calendar.getInstance()
         calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
         for (i in 0..6) {
             val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(calendar.timeInMillis + i * 24 * 60 * 60 * 1000))
-            val miktar = gunlukMap[date] ?: 0
+            val (miktar, hedef) = gunlukMap[date] ?: Pair(0, 0)
             val layout = LinearLayout(requireContext())
             layout.orientation = LinearLayout.VERTICAL
             layout.gravity = android.view.Gravity.CENTER
             val circle = ProgressBar(requireContext(), null, android.R.attr.progressBarStyleHorizontal)
-            circle.max = gunlukHedef
+            circle.max = if (hedef > 0) hedef else 1
             circle.progress = miktar
             circle.layoutParams = LinearLayout.LayoutParams(80, 80)
             val dayText = TextView(requireContext())
@@ -216,7 +254,7 @@ class SlideshowFragment : Fragment() {
             dayText.setTextColor(resources.getColor(android.R.color.white, null))
             dayText.textAlignment = View.TEXT_ALIGNMENT_CENTER
             val miktarText = TextView(requireContext())
-            miktarText.text = "$miktar/$gunlukHedef ml"
+            miktarText.text = "$miktar/$hedef ml"
             miktarText.setTextColor(resources.getColor(android.R.color.white, null))
             miktarText.textAlignment = View.TEXT_ALIGNMENT_CENTER
             layout.addView(circle)

@@ -11,11 +11,101 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <!-- Bardak Türü Seçimi -->
+        <TextView
+            android:id="@+id/textViewBardakBaslik"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Bardak Türü Seçiniz"
+            android:textAlignment="center"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/purple_700"
+            android:layout_marginBottom="15dp"/>
+
+        <LinearLayout
+            android:id="@+id/layoutBardakSecimi"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginBottom="8dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardBardak100"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_marginEnd="8dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp">
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="100 ml"
+                    android:textSize="18sp"
+                    android:textStyle="bold"/>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardBardak200"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_marginEnd="8dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp">
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="200 ml"
+                    android:textSize="18sp"
+                    android:textStyle="bold"/>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardBardak300"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_marginEnd="8dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp">
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="300 ml"
+                    android:textSize="18sp"
+                    android:textStyle="bold"/>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardBardak500"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp">
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="500 ml"
+                    android:textSize="18sp"
+                    android:textStyle="bold"/>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/placeholderBardakBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"/>
+
         <!-- Günlük Su Hedefi Kartı -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="24dp"
             app:cardCornerRadius="20dp"
             app:cardElevation="6dp"
             app:cardBackgroundColor="#2196F3">
@@ -88,6 +178,7 @@
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
             app:cardCornerRadius="20dp"
             app:cardElevation="6dp"
             app:cardBackgroundColor="#2196F3">
