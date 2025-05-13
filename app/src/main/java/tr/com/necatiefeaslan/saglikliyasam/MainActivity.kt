@@ -20,6 +20,7 @@ import tr.com.necatiefeaslan.saglikliyasam.databinding.ActivityMainBinding
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.bumptech.glide.Glide
+import tr.com.necatiefeaslan.saglikliyasam.ui.changepassword.ChangePasswordFragment
 
 class MainActivity : AppCompatActivity() {
 
@@ -124,6 +125,11 @@ class MainActivity : AppCompatActivity() {
                 editor.apply()
 
                 finish()  // MainActivity'yi kapatıyoruz
+                return true
+            }
+            R.id.action_change_password -> {
+                val navController = findNavController(R.id.nav_host_fragment_content_main)
+                navController.navigate(R.id.nav_change_password)
                 return true
             }
             else -> return super.onOptionsItemSelected(item)
