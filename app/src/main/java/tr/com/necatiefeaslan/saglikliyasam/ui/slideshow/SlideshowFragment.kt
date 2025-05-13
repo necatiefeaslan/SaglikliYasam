@@ -124,9 +124,9 @@ class SlideshowFragment : Fragment() {
 
     private fun updateGunlukHedefUI(toplam: Int = 0) {
         binding.textViewGunlukHedef.text = "$toplam / $gunlukHedef ml"
-        binding.progressBarGunlukSu.max = gunlukHedef
+        binding.progressBarGunlukSu.max = if (gunlukHedef > 0) gunlukHedef else 1
         binding.progressBarGunlukSu.progress = toplam
-        if (toplam >= gunlukHedef) {
+        if (gunlukHedef > 0 && toplam >= gunlukHedef) {
             Toast.makeText(requireContext(), "Tebrikler bugünkü su hedefinizi tamamladınız!", Toast.LENGTH_LONG).show()
         }
     }
