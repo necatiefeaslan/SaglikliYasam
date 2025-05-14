@@ -40,6 +40,7 @@ class StepCounterService : Service(), SensorEventListener {
             }
             val stepsToday = event.values[0].toInt() - (initialStepCount ?: 0)
             updateNotification(stepsToday)
+            kaydetAdimFirestore(stepsToday)
         }
     }
 
@@ -63,5 +64,25 @@ class StepCounterService : Service(), SensorEventListener {
         val notification = createNotification(steps)
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(1, notification)
+    }
+
+    private fun kaydetAdimFirestore(adim: Int) {
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        val userId = auth.currentUser?.uid ?: return
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val docId = "${userId}_$today"
+        val ref = db.collection("adim").document(docId)
+        ref.get().addOnSuccessListener { doc ->
+            val hedef = if (doc.exists()) doc.getLong("hedefadim")?.toInt() ?: 8000 else 8000
+            val adimKayit = hashMapOf(
+                "id" to docId,
+                "tarih" to today,
+                "adimsayisi" to adim,
+                "kullaniciId" to userId,
+                "hedefadim" to hedef
+            )
+            ref.set(adimKayit)
+        }
     }
 } 
