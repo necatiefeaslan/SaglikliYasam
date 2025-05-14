@@ -39,7 +39,7 @@
                     android:id="@+id/textViewGunlukAdim"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="0 / 8000 adım"
+                    android:text="0 / 0 adım"
                     android:textColor="@android:color/white"
                     android:textSize="32sp"
                     android:textStyle="bold"

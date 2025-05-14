@@ -25,7 +25,7 @@ class HomeFragment : Fragment(), SensorEventListener {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private val userId get() = auth.currentUser?.uid ?: ""
-    private var gunlukHedef = 8000
+    private var gunlukHedef = 0
     private var adimSayisi = 0
     private lateinit var sensorManager: SensorManager
     private var stepSensor: Sensor? = null
