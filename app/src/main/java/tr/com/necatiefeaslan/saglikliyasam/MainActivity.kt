@@ -26,6 +26,12 @@ import androidx.work.WorkManager
 import androidx.work.ExistingPeriodicWorkPolicy
 import tr.com.necatiefeaslan.saglikliyasam.util.SuHatirlaticiWorker
 import java.util.concurrent.TimeUnit
+import android.Manifest
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import tr.com.necatiefeaslan.saglikliyasam.util.BatteryLevelReceiver
 
 class MainActivity : AppCompatActivity() {
 
@@ -110,6 +116,16 @@ class MainActivity : AppCompatActivity() {
             ExistingPeriodicWorkPolicy.REPLACE,
             workRequest
         )
+
+        // Runtime SMS izni iste
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.SEND_SMS), 1)
+        }
+
+        // BatteryLevelReceiver'ı kodda register et
+        val batteryReceiver = BatteryLevelReceiver()
+        val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        registerReceiver(batteryReceiver, filter)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
