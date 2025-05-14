@@ -140,6 +140,13 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(this, StepCounterService::class.java)
             ContextCompat.startForegroundService(this, intent)
         }
+
+        // Android 13+ için bildirim izni iste
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1002)
+            }
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
