@@ -177,7 +177,7 @@
         <!-- Haftalık Su Özeti Kartı -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="180dp"
             android:layout_marginBottom="24dp"
             app:cardCornerRadius="20dp"
             app:cardElevation="6dp"
@@ -187,7 +187,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="20dp">
+                android:gravity="center_horizontal|top"
+                android:paddingTop="16dp"
+                android:paddingBottom="8dp"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp">
 
                 <TextView
                     android:id="@+id/textViewHaftalikOzetBaslik"

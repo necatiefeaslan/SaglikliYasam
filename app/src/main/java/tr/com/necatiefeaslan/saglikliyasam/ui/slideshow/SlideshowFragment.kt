@@ -21,6 +21,12 @@ import tr.com.necatiefeaslan.saglikliyasam.databinding.FragmentSlideshowBinding
 import tr.com.necatiefeaslan.saglikliyasam.model.Su
 import java.text.SimpleDateFormat
 import java.util.*
+import android.graphics.Color
+import android.graphics.Typeface
+import android.view.Gravity
+import com.google.android.material.progressindicator.CircularProgressIndicator
+import androidx.core.content.ContextCompat
+import android.text.TextUtils
 
 class SlideshowFragment : Fragment() {
 
@@ -242,24 +248,42 @@ class SlideshowFragment : Fragment() {
         for (i in 0..6) {
             val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(calendar.timeInMillis + i * 24 * 60 * 60 * 1000))
             val (miktar, hedef) = gunlukMap[date] ?: Pair(0, 0)
+            val percent = if (hedef > 0) (miktar * 100 / hedef).coerceAtMost(100) else 0
+
+            val frame = FrameLayout(requireContext())
+            val circle = CircularProgressIndicator(requireContext())
+            circle.indicatorSize = 130
+            circle.trackThickness = 14
+            circle.max = 100
+            circle.progress = percent
+            circle.setIndicatorColor(ContextCompat.getColor(requireContext(), R.color.teal_200))
+            circle.trackColor = ContextCompat.getColor(requireContext(), android.R.color.white)
+            circle.layoutParams = FrameLayout.LayoutParams(130, 120, Gravity.CENTER)
+
+            val percentText = TextView(requireContext())
+            percentText.text = "%$percent"
+            percentText.setTextColor(Color.BLACK)
+            percentText.textSize = 13f
+            percentText.typeface = Typeface.DEFAULT_BOLD
+            percentText.gravity = Gravity.CENTER
+            percentText.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT, Gravity.CENTER)
+
+            frame.addView(circle)
+            frame.addView(percentText)
+
             val layout = LinearLayout(requireContext())
             layout.orientation = LinearLayout.VERTICAL
-            layout.gravity = android.view.Gravity.CENTER
-            val circle = ProgressBar(requireContext(), null, android.R.attr.progressBarStyleHorizontal)
-            circle.max = if (hedef > 0) hedef else 1
-            circle.progress = miktar
-            circle.layoutParams = LinearLayout.LayoutParams(80, 80)
+            layout.gravity = Gravity.CENTER
+            layout.setVerticalGravity(Gravity.TOP)
+            layout.addView(frame)
+
             val dayText = TextView(requireContext())
             dayText.text = days[i]
             dayText.setTextColor(resources.getColor(android.R.color.white, null))
             dayText.textAlignment = View.TEXT_ALIGNMENT_CENTER
-            val miktarText = TextView(requireContext())
-            miktarText.text = "$miktar/$hedef ml"
-            miktarText.setTextColor(resources.getColor(android.R.color.white, null))
-            miktarText.textAlignment = View.TEXT_ALIGNMENT_CENTER
-            layout.addView(circle)
+            dayText.setPadding(0, 12, 0, 0)
             layout.addView(dayText)
-            layout.addView(miktarText)
+
             val params = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             params.setMargins(8, 0, 8, 0)
             layout.layoutParams = params
