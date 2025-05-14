@@ -29,6 +29,7 @@ class HomeFragment : Fragment() {
     private var gunlukHedef = 8000
     private var adimSayisi = 0
     private var adimListener: ListenerRegistration? = null
+    private var haftalikListener: ListenerRegistration? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -43,7 +44,7 @@ class HomeFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         getGunlukHedef()
         listenGunlukAdim()
-        getHaftalikOzet()
+        listenHaftalikOzet()
         binding.buttonAdimHedefGuncelle.setOnClickListener { showHedefGuncelleDialog() }
     }
 
@@ -73,6 +74,15 @@ class HomeFragment : Fragment() {
                     0
                 }
                 updateGunlukAdimUI()
+            }
+    }
+
+    private fun listenHaftalikOzet() {
+        haftalikListener?.remove()
+        haftalikListener = db.collection("adim")
+            .whereEqualTo("kullaniciId", userId)
+            .addSnapshotListener { _, _ ->
+                getHaftalikOzet()
             }
     }
 
@@ -203,6 +213,7 @@ class HomeFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         adimListener?.remove()
+        haftalikListener?.remove()
         _binding = null
     }
 }
