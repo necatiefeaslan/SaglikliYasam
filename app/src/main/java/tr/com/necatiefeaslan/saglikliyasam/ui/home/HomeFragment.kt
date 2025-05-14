@@ -19,17 +19,14 @@ import tr.com.necatiefeaslan.saglikliyasam.model.Adim
 import java.text.SimpleDateFormat
 import java.util.*
 
-class HomeFragment : Fragment(), SensorEventListener {
+class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private val userId get() = auth.currentUser?.uid ?: ""
-    private var gunlukHedef = 0
+    private var gunlukHedef = 8000
     private var adimSayisi = 0
-    private lateinit var sensorManager: SensorManager
-    private var stepSensor: Sensor? = null
-    private var initialStepCount: Int? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -42,39 +39,11 @@ class HomeFragment : Fragment(), SensorEventListener {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        sensorManager = requireContext().getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
         getGunlukHedef()
         getGunlukToplam()
         getHaftalikOzet()
         binding.buttonAdimHedefGuncelle.setOnClickListener { showHedefGuncelleDialog() }
     }
-
-    override fun onResume() {
-        super.onResume()
-        stepSensor?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
-        }
-    }
-
-    override fun onPause() {
-        super.onPause()
-        sensorManager.unregisterListener(this)
-    }
-
-    override fun onSensorChanged(event: SensorEvent?) {
-        if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
-            if (initialStepCount == null) {
-                initialStepCount = event.values[0].toInt()
-            }
-            val stepsToday = event.values[0].toInt() - (initialStepCount ?: 0)
-            adimSayisi = stepsToday
-            updateGunlukAdimUI()
-            kaydetAdimFirestore(stepsToday)
-        }
-    }
-
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
     private fun getGunlukHedef() {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
@@ -147,23 +116,6 @@ class HomeFragment : Fragment(), SensorEventListener {
             }
             .setNegativeButton("İptal", null)
             .show()
-    }
-
-    private fun kaydetAdimFirestore(adim: Int) {
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-        val docId = "${userId}_$today"
-        val ref = db.collection("adim").document(docId)
-        ref.get().addOnSuccessListener { doc ->
-            val hedef = if (doc.exists()) doc.toObject(Adim::class.java)?.hedefadim ?: gunlukHedef else gunlukHedef
-            val adimKayit = Adim(
-                id = docId,
-                tarih = today,
-                adimsayisi = adim,
-                kullaniciId = userId,
-                hedefadim = hedef
-            )
-            ref.set(adimKayit)
-        }
     }
 
     private fun getHaftalikOzet() {
