@@ -13,6 +13,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import tr.com.necatiefeaslan.saglikliyasam.R
 import tr.com.necatiefeaslan.saglikliyasam.databinding.FragmentHomeBinding
 import tr.com.necatiefeaslan.saglikliyasam.model.Adim
@@ -27,6 +28,7 @@ class HomeFragment : Fragment() {
     private val userId get() = auth.currentUser?.uid ?: ""
     private var gunlukHedef = 8000
     private var adimSayisi = 0
+    private var adimListener: ListenerRegistration? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -40,7 +42,7 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         getGunlukHedef()
-        getGunlukToplam()
+        listenGunlukAdim()
         getHaftalikOzet()
         binding.buttonAdimHedefGuncelle.setOnClickListener { showHedefGuncelleDialog() }
     }
@@ -60,19 +62,18 @@ class HomeFragment : Fragment() {
             .addOnFailureListener { updateGunlukAdimUI() }
     }
 
-    private fun getGunlukToplam() {
+    private fun listenGunlukAdim() {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val docId = "${userId}_$today"
-        db.collection("adim").document(docId).get()
-            .addOnSuccessListener { doc ->
-                adimSayisi = if (doc.exists()) {
+        adimListener = db.collection("adim").document(docId)
+            .addSnapshotListener { doc, _ ->
+                adimSayisi = if (doc != null && doc.exists()) {
                     doc.toObject(Adim::class.java)?.adimsayisi ?: 0
                 } else {
                     0
                 }
                 updateGunlukAdimUI()
             }
-            .addOnFailureListener { updateGunlukAdimUI() }
     }
 
     private fun updateGunlukAdimUI() {
@@ -107,7 +108,6 @@ class HomeFragment : Fragment() {
                         )
                         ref.set(adim)
                             .addOnSuccessListener {
-                                getGunlukToplam()
                                 getHaftalikOzet()
                                 Toast.makeText(requireContext(), "Hedef güncellendi", Toast.LENGTH_SHORT).show()
                             }
@@ -202,6 +202,7 @@ class HomeFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        adimListener?.remove()
         _binding = null
     }
 }
