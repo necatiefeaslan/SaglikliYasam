@@ -37,8 +37,17 @@ class StepCounterService : Service(), SensorEventListener {
 
     override fun onSensorChanged(event: android.hardware.SensorEvent?) {
         if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
+            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+            val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+            val userId = auth.currentUser?.uid ?: return
+            val prefs = getSharedPreferences("StepPrefs", Context.MODE_PRIVATE)
+            val key = "${userId}_$today"
             if (initialStepCount == null) {
-                initialStepCount = event.values[0].toInt() - firestoreAdim
+                initialStepCount = prefs.getInt(key, -1)
+                if (initialStepCount == -1) {
+                    initialStepCount = event.values[0].toInt()
+                    prefs.edit().putInt(key, initialStepCount!!).apply()
+                }
             }
             val stepsToday = event.values[0].toInt() - (initialStepCount ?: 0)
             updateNotification(stepsToday)
