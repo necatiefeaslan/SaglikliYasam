@@ -102,7 +102,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Su hatırlatıcı bildirimi için WorkManager başlat
-        val workRequest = PeriodicWorkRequestBuilder<SuHatirlaticiWorker>(1, TimeUnit.HOURS).build()
+        val workRequest = PeriodicWorkRequestBuilder<SuHatirlaticiWorker>(1, TimeUnit.HOURS)
+            .setInitialDelay(1, TimeUnit.HOURS)
+            .build()
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "su_hatirlatici",
             ExistingPeriodicWorkPolicy.REPLACE,
