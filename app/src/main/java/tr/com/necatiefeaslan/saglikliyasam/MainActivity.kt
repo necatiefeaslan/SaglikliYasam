@@ -153,6 +153,10 @@ class MainActivity : AppCompatActivity() {
                 // Firebase ile çıkış yap
                 FirebaseAuth.getInstance().signOut()
 
+                // StepCounterService'i durdur
+                val stopIntent = Intent(this, StepCounterService::class.java)
+                stopService(stopIntent)
+
                 // Çıkış yaptıktan sonra, LoginActivity'ye yönlendir
                 val intent = Intent(this, LoginActivity::class.java)
                 startActivity(intent)
