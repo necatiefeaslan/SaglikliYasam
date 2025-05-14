@@ -15,6 +15,7 @@ class StepCounterService : Service(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
     private var stepSensor: Sensor? = null
     private var initialStepCount: Int? = null
+    private var firestoreAdim: Int = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -22,6 +23,7 @@ class StepCounterService : Service(), SensorEventListener {
         super.onCreate()
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+        fetchFirestoreAdim()
         stepSensor?.let {
             sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
         }
@@ -36,7 +38,7 @@ class StepCounterService : Service(), SensorEventListener {
     override fun onSensorChanged(event: android.hardware.SensorEvent?) {
         if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
             if (initialStepCount == null) {
-                initialStepCount = event.values[0].toInt()
+                initialStepCount = event.values[0].toInt() - firestoreAdim
             }
             val stepsToday = event.values[0].toInt() - (initialStepCount ?: 0)
             updateNotification(stepsToday)
@@ -84,5 +86,17 @@ class StepCounterService : Service(), SensorEventListener {
             )
             ref.set(adimKayit)
         }
+    }
+
+    private fun fetchFirestoreAdim() {
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        val userId = auth.currentUser?.uid ?: return
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val docId = "${userId}_$today"
+        db.collection("adim").document(docId).get()
+            .addOnSuccessListener { doc ->
+                firestoreAdim = if (doc.exists()) doc.getLong("adimsayisi")?.toInt() ?: 0 else 0
+            }
     }
 } 
