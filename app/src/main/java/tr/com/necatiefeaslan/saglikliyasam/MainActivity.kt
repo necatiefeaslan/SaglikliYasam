@@ -32,6 +32,7 @@ import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import tr.com.necatiefeaslan.saglikliyasam.util.BatteryLevelReceiver
+import android.os.Build
 
 class MainActivity : AppCompatActivity() {
 
@@ -126,6 +127,19 @@ class MainActivity : AppCompatActivity() {
         val batteryReceiver = BatteryLevelReceiver()
         val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
         registerReceiver(batteryReceiver, filter)
+
+        // Adım servisi için izin kontrolü ve başlatma
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.ACTIVITY_RECOGNITION), 1001)
+            } else {
+                val intent = Intent(this, StepCounterService::class.java)
+                ContextCompat.startForegroundService(this, intent)
+            }
+        } else {
+            val intent = Intent(this, StepCounterService::class.java)
+            ContextCompat.startForegroundService(this, intent)
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
