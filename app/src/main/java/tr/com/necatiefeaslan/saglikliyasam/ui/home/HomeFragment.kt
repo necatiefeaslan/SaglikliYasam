@@ -132,81 +132,153 @@ class HomeFragment : Fragment() {
         val calendar = Calendar.getInstance()
         val days = arrayOf("Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz")
         val userId = this.userId
+        
+        // Mevcut haftanın başını (Pazartesi) bul
+        calendar.firstDayOfWeek = Calendar.MONDAY
         calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
         val monday = calendar.time
+        
+        // Haftalık verileri almak için tarih aralığı oluştur
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val startDate = dateFormat.format(monday)
+        
+        calendar.add(Calendar.DAY_OF_WEEK, 6) // Pazar (haftanın son günü)
+        val endDate = dateFormat.format(calendar.time)
+        
+        // Firestore'dan haftalık adım verilerini al
         db.collection("adim")
             .whereEqualTo("kullaniciId", userId)
+            .whereGreaterThanOrEqualTo("tarih", startDate)
+            .whereLessThanOrEqualTo("tarih", endDate)
             .get()
             .addOnSuccessListener { docs ->
-                val gunlukMap = mutableMapOf<String, Pair<Int, Int>>() // tarih -> Pair(adimsayisi, hedefadim)
+                // Haftanın her günü için tarih -> (adım sayısı, hedef) eşleşmesi oluştur
+                val gunlukMap = mutableMapOf<String, Pair<Int, Int>>()
+                
+                // Önce tüm haftayı sıfır değerleriyle doldur
+                calendar.time = monday // Tekrar pazartesiye dön
                 for (i in 0..6) {
-                    val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(monday.time + i * 24 * 60 * 60 * 1000))
-                    gunlukMap[date] = Pair(0, 0)
+                    val currentDate = Date(calendar.timeInMillis)
+                    val dateStr = dateFormat.format(currentDate)
+                    gunlukMap[dateStr] = Pair(0, 8000) // Varsayılan hedef 8000
+                    calendar.add(Calendar.DAY_OF_MONTH, 1)
                 }
+                
+                // Firestore'dan gelen verileri ekle
                 for (doc in docs) {
                     val adim = doc.toObject(Adim::class.java)
-                    if (gunlukMap.containsKey(adim.tarih)) {
-                        gunlukMap[adim.tarih] = Pair(
-                            gunlukMap[adim.tarih]!!.first + adim.adimsayisi,
-                            adim.hedefadim
-                        )
+                    if (adim.tarih.isNotEmpty()) {
+                        // Eğer bu tarih için veri varsa, onu güncelle
+                        gunlukMap[adim.tarih] = Pair(adim.adimsayisi, adim.hedefadim)
                     }
                 }
+                
+                updateHaftalikOzetUI(gunlukMap, days)
+            }
+            .addOnFailureListener {
+                // Başarısız olursa boş harita ile devam et
+                val gunlukMap = mutableMapOf<String, Pair<Int, Int>>()
+                calendar.time = monday
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                
+                for (i in 0..6) {
+                    val currentDate = Date(calendar.timeInMillis)
+                    val dateStr = dateFormat.format(currentDate)
+                    gunlukMap[dateStr] = Pair(0, 8000)
+                    calendar.add(Calendar.DAY_OF_MONTH, 1)
+                }
+                
                 updateHaftalikOzetUI(gunlukMap, days)
             }
     }
 
     private fun updateHaftalikOzetUI(gunlukMap: Map<String, Pair<Int, Int>>, days: Array<String>) {
         binding.layoutHaftalikAdimOzet.removeAllViews()
+        
+        // Haftanın her günü için görsel bileşenleri oluştur
         val calendar = Calendar.getInstance()
+        calendar.firstDayOfWeek = Calendar.MONDAY
         calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+        
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        
         for (i in 0..6) {
-            val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(calendar.timeInMillis + i * 24 * 60 * 60 * 1000))
-            val (adim, hedef) = gunlukMap[date] ?: Pair(0, 0)
-            val percent = if (hedef > 0) (adim * 100 / hedef).coerceAtMost(100) else 0
+            val currentDate = Date(calendar.timeInMillis)
+            val dateStr = dateFormat.format(currentDate)
+            val (adim, hedef) = gunlukMap[dateStr] ?: Pair(0, 8000)
+            
+            // Yüzde hesapla (minimum 0, maksimum 100)
+            val percent = if (hedef > 0) {
+                ((adim.toFloat() / hedef.toFloat()) * 100).toInt().coerceIn(0, 100)
+            } else 0
 
+            // Frame layout oluştur
             val frame = android.widget.FrameLayout(requireContext())
+            
+            // Dairesel ilerleme göstergesi
             val circle = com.google.android.material.progressindicator.CircularProgressIndicator(requireContext())
-            circle.indicatorSize = 130
-            circle.trackThickness = 14
+            circle.indicatorSize = 100 // Daha küçük boyut
+            circle.trackThickness = 10 // Daha ince çizgi
             circle.max = 100
             circle.progress = percent
-            circle.setIndicatorColor(androidx.core.content.ContextCompat.getColor(requireContext(), tr.com.necatiefeaslan.saglikliyasam.R.color.teal_200))
-            circle.trackColor = androidx.core.content.ContextCompat.getColor(requireContext(), android.R.color.white)
-            circle.layoutParams = android.widget.FrameLayout.LayoutParams(130, 120, android.view.Gravity.CENTER)
-
+            circle.setIndicatorColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.white))
+            circle.trackColor = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.white_transparent_50)
+            
+            val circleParams = android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+            circleParams.gravity = android.view.Gravity.CENTER
+            circle.layoutParams = circleParams
+            
+            // Yüzde metni
             val percentText = android.widget.TextView(requireContext())
             percentText.text = "%$percent"
-            percentText.setTextColor(android.graphics.Color.BLACK)
-            percentText.textSize = 13f
+            percentText.setTextColor(android.graphics.Color.WHITE)
+            percentText.textSize = 12f
             percentText.setTypeface(null, android.graphics.Typeface.BOLD)
-            percentText.gravity = android.view.Gravity.CENTER
-            percentText.layoutParams = android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.view.Gravity.CENTER
+            
+            val textParams = android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
             )
-
+            textParams.gravity = android.view.Gravity.CENTER
+            percentText.layoutParams = textParams
+            
             frame.addView(circle)
             frame.addView(percentText)
-
+            
+            // Gün adını içeren dikey layout
             val layout = android.widget.LinearLayout(requireContext())
             layout.orientation = android.widget.LinearLayout.VERTICAL
             layout.gravity = android.view.Gravity.CENTER
-            layout.setVerticalGravity(android.view.Gravity.TOP)
+            
             layout.addView(frame)
-
+            
+            // Gün metni
             val dayText = android.widget.TextView(requireContext())
             dayText.text = days[i]
-            dayText.setTextColor(resources.getColor(android.R.color.white, null))
+            dayText.setTextColor(android.graphics.Color.WHITE)
             dayText.textAlignment = android.view.View.TEXT_ALIGNMENT_CENTER
-            dayText.setPadding(0, 12, 0, 0)
+            dayText.setPadding(0, 10, 0, 0)
+            
+            val dayParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            dayText.layoutParams = dayParams
+            
             layout.addView(dayText)
-
-            val params = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            params.setMargins(8, 0, 8, 0)
-            layout.layoutParams = params
+            
+            // Ana layout'a ekle
+            val columnParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            columnParams.setMargins(4, 0, 4, 0)
+            layout.layoutParams = columnParams
+            
             binding.layoutHaftalikAdimOzet.addView(layout)
+            
+            // Sonraki güne geç
+            calendar.add(Calendar.DAY_OF_MONTH, 1)
         }
     }
 
