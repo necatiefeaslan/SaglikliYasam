@@ -9,25 +9,44 @@ import androidx.work.Worker
 import androidx.work.WorkerParameters
 import tr.com.necatiefeaslan.saglikliyasam.R
 
-class SuHatirlaticiWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
+class SuHatirlaticiWorker(
+    private val context: Context,
+    params: WorkerParameters
+) : Worker(context, params) {
+
+    companion object {
+        private const val CHANNEL_ID = "su_hatirlatici_channel"
+        private const val NOTIFICATION_ID = 1
+    }
+
     override fun doWork(): Result {
-        val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = "su_hatirlatici"
+        createNotificationChannel()
+        showNotification()
+        return Result.success()
+    }
+
+    private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Su Hatırlatıcı", NotificationManager.IMPORTANCE_HIGH)
+            val name = "Su Hatırlatıcı"
+            val descriptionText = "Su içme hatırlatmaları için bildirim kanalı"
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+            }
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
-        
-        // Bildirimi göster
-        val notification = NotificationCompat.Builder(applicationContext, channelId)
-            .setContentTitle("Su İçme Zamanı!")
-            .setContentText("Düzenli su içmeyi unutmayın!")
+    }
+
+    private fun showNotification() {
+        val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_water)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .build()
-        
-        notificationManager.notify(100, notification)
-        
-        return Result.success()
+            .setContentTitle("Su İçme Zamanı")
+            .setContentText("Sağlıklı kalmak için su içmeyi unutmayın!")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
     }
 } 
