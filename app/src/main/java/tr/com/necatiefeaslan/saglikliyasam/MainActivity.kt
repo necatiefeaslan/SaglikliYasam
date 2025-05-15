@@ -31,7 +31,6 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import tr.com.necatiefeaslan.saglikliyasam.util.BatteryLevelReceiver
 import android.os.Build
 
 class MainActivity : AppCompatActivity() {
@@ -108,9 +107,9 @@ class MainActivity : AppCompatActivity() {
                 }
         }
 
-        // Su hatırlatıcı bildirimi için WorkManager başlat
-        val workRequest = PeriodicWorkRequestBuilder<SuHatirlaticiWorker>(1, TimeUnit.HOURS)
-            .setInitialDelay(1, TimeUnit.HOURS)
+        // Su hatırlatıcı bildirimi için WorkManager başlat (30 dakikada bir)
+        val workRequest = PeriodicWorkRequestBuilder<SuHatirlaticiWorker>(30, TimeUnit.MINUTES)
+            .setInitialDelay(30, TimeUnit.MINUTES)
             .build()
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "su_hatirlatici",
@@ -123,11 +122,9 @@ class MainActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.SEND_SMS), 1)
         }
 
-        // BatteryLevelReceiver'ı kodda register et
-        val batteryReceiver = BatteryLevelReceiver()
-        val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        registerReceiver(batteryReceiver, filter)
-
+        // BatteryLevelReceiver gerekli intent filterleri ile manifest dosyasında tanımlandı
+        // Manifest içinde kayıtlı olduğu için burada registerReceiver kullanımına gerek yok
+        
         // Adım servisi için izin kontrolü ve başlatma
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
