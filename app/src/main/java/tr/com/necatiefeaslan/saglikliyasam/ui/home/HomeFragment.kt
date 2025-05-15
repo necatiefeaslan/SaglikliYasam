@@ -6,6 +6,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -142,52 +143,58 @@ class HomeFragment : Fragment() {
         val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val startDate = dateFormat.format(monday)
         
-        calendar.add(Calendar.DAY_OF_WEEK, 6) // Pazar (haftanın son günü)
-        val endDate = dateFormat.format(calendar.time)
+        // Pazar günü için tarihi hesapla
+        val sundayCalendar = Calendar.getInstance()
+        sundayCalendar.firstDayOfWeek = Calendar.MONDAY
+        sundayCalendar.time = monday
+        sundayCalendar.add(Calendar.DAY_OF_WEEK, 6) // Pazar (haftanın son günü)
+        val endDate = dateFormat.format(sundayCalendar.time)
+        
+        // Veri günlüğü - hata ayıklama için
+        Log.d("HomeFragment", "Tarih aralığı: $startDate - $endDate")
+        
+        // Hafta için boş veri haritası oluştur
+        val gunlukMap = mutableMapOf<String, Pair<Int, Int>>()
+        calendar.time = monday // Pazartesiye dön
+        
+        // Önce tüm haftayı sıfır değerleriyle doldur
+        for (i in 0..6) {
+            val currentDate = dateFormat.format(calendar.time)
+            gunlukMap[currentDate] = Pair(0, 8000) // Varsayılan adım hedefi 8000
+            calendar.add(Calendar.DAY_OF_MONTH, 1)
+        }
         
         // Firestore'dan haftalık adım verilerini al
         db.collection("adim")
             .whereEqualTo("kullaniciId", userId)
-            .whereGreaterThanOrEqualTo("tarih", startDate)
-            .whereLessThanOrEqualTo("tarih", endDate)
             .get()
             .addOnSuccessListener { docs ->
-                // Haftanın her günü için tarih -> (adım sayısı, hedef) eşleşmesi oluştur
-                val gunlukMap = mutableMapOf<String, Pair<Int, Int>>()
-                
-                // Önce tüm haftayı sıfır değerleriyle doldur
-                calendar.time = monday // Tekrar pazartesiye dön
-                for (i in 0..6) {
-                    val currentDate = Date(calendar.timeInMillis)
-                    val dateStr = dateFormat.format(currentDate)
-                    gunlukMap[dateStr] = Pair(0, 8000) // Varsayılan hedef 8000
-                    calendar.add(Calendar.DAY_OF_MONTH, 1)
-                }
-                
-                // Firestore'dan gelen verileri ekle
+                // Tüm verileri işle ve sadece bu haftaya ait olanları filtrele
                 for (doc in docs) {
                     val adim = doc.toObject(Adim::class.java)
-                    if (adim.tarih.isNotEmpty()) {
-                        // Eğer bu tarih için veri varsa, onu güncelle
-                        gunlukMap[adim.tarih] = Pair(adim.adimsayisi, adim.hedefadim)
+                    val adimTarih = adim.tarih
+                    
+                    // Haftaya ait mi kontrol et
+                    if (adimTarih >= startDate && adimTarih <= endDate) {
+                        // Bu tarih için mevcut değerleri al
+                        val eskiDeger = gunlukMap[adimTarih] ?: Pair(0, 8000)
+                        // Yeni değerleri kaydet
+                        gunlukMap[adimTarih] = Pair(adim.adimsayisi, adim.hedefadim)
+                        
+                        // Log ile kontrol et
+                        Log.d("HomeFragment", "Adım verisi: Tarih=$adimTarih, Adım=${adim.adimsayisi}, Hedef=${adim.hedefadim}")
                     }
+                }
+                
+                // Günlük verileri göster
+                for ((tarih, deger) in gunlukMap) {
+                    Log.d("HomeFragment", "Grafik verisi: $tarih -> Adım=${deger.first}, Hedef=${deger.second}")
                 }
                 
                 updateHaftalikOzetUI(gunlukMap, days)
             }
-            .addOnFailureListener {
-                // Başarısız olursa boş harita ile devam et
-                val gunlukMap = mutableMapOf<String, Pair<Int, Int>>()
-                calendar.time = monday
-                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                
-                for (i in 0..6) {
-                    val currentDate = Date(calendar.timeInMillis)
-                    val dateStr = dateFormat.format(currentDate)
-                    gunlukMap[dateStr] = Pair(0, 8000)
-                    calendar.add(Calendar.DAY_OF_MONTH, 1)
-                }
-                
+            .addOnFailureListener { e ->
+                Log.e("HomeFragment", "Veri çekme hatası", e)
                 updateHaftalikOzetUI(gunlukMap, days)
             }
     }
