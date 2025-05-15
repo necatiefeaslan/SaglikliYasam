@@ -93,28 +93,43 @@
             android:layout_height="180dp"
             android:layout_marginBottom="24dp"
             app:cardCornerRadius="20dp"
-            app:cardElevation="6dp"
-            app:cardBackgroundColor="#2196F3">
+            app:cardElevation="8dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
+                android:background="@drawable/modern_card_gradient"
                 android:gravity="center_horizontal|top"
                 android:paddingTop="16dp"
                 android:paddingBottom="8dp"
                 android:paddingStart="24dp"
                 android:paddingEnd="24dp">
 
-                <TextView
-                    android:id="@+id/textViewHaftalikAdimOzetBaslik"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Haftalık Adım Özeti"
-                    android:textColor="@android:color/white"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:src="@drawable/ic_calendar"
+                        android:tint="@android:color/white"
+                        android:layout_marginEnd="12dp"
+                        android:layout_gravity="center_vertical"/>
+
+                    <TextView
+                        android:id="@+id/textViewHaftalikAdimOzetBaslik"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Haftalık Adım Özeti"
+                        android:textColor="@android:color/white"
+                        android:textSize="18sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:layout_gravity="center_vertical"/>
+                </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/layoutHaftalikAdimOzet"
