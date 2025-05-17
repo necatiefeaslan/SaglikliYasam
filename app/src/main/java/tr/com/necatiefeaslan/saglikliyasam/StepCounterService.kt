@@ -21,21 +21,35 @@ class StepCounterService : Service(), SensorEventListener {
 
     override fun onCreate() {
         super.onCreate()
-        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
-        
-        // Her başlangıçta initialStepCount'u sıfırla
-        initialStepCount = null
-        
-        // Firestore'dan kullanıcının mevcut adım verisini çek
-        fetchFirestoreAdim()
-        
-        // Adım sensörünü başlat
-        stepSensor?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+        try {
+            sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+            stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+            
+            // Step sensor kontrolü
+            if (stepSensor == null) {
+                android.util.Log.e("StepCounterService", "Bu cihazda adım sensörü bulunamadı")
+                stopSelf()
+                return
+            }
+            
+            // Her başlangıçta initialStepCount'u sıfırla
+            initialStepCount = null
+            
+            // Firestore'dan kullanıcının mevcut adım verisini çek
+            fetchFirestoreAdim()
+            
+            // Adım sensörünü başlat
+            sensorManager.registerListener(this, stepSensor, SensorManager.SENSOR_DELAY_NORMAL)
+            
+            // Bildirim oluştur ve foreground servisi başlat
+            val notification = createNotification(0)
+            startForeground(1, notification)
+            
+            android.util.Log.d("StepCounterService", "Adım sayacı servisi başlatıldı")
+        } catch (e: Exception) {
+            android.util.Log.e("StepCounterService", "Servis başlatma hatası: ${e.message}", e)
+            stopSelf()
         }
-        
-        startForeground(1, createNotification(0))
     }
 
     override fun onDestroy() {
@@ -44,41 +58,45 @@ class StepCounterService : Service(), SensorEventListener {
     }
 
     override fun onSensorChanged(event: android.hardware.SensorEvent?) {
-        if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
-            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
-            val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
-            val userId = auth.currentUser?.uid ?: return
-            val prefs = getSharedPreferences("StepPrefs", Context.MODE_PRIVATE)
-            val key = "${userId}_$today"
-            
-            // Bugün için kullanıcının başlangıç adım sayısını kontrol et
-            if (initialStepCount == null) {
-                initialStepCount = prefs.getInt(key, -1)
-                if (initialStepCount == -1) {
-                    // Kullanıcının bugünkü ilk girişi - başlangıç adımını kaydet
-                    initialStepCount = event.values[0].toInt()
-                    prefs.edit().putInt(key, initialStepCount!!).apply()
-                    
-                    // Firestore'dan mevcut adım verisini kontrol et
-                    val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                    val docId = "${userId}_$today"
-                    db.collection("adim").document(docId).get().addOnSuccessListener { doc ->
-                        if (doc.exists()) {
-                            // Eğer kullanıcının bugün için zaten adım kaydı varsa, o değeri koru
-                            firestoreAdim = doc.getLong("adimsayisi")?.toInt() ?: 0
-                            updateNotification(firestoreAdim)
-                        } else {
-                            updateNotification(0)
+        try {
+            if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
+                val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+                val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+                val userId = auth.currentUser?.uid ?: return
+                val prefs = getSharedPreferences("StepPrefs", Context.MODE_PRIVATE)
+                val key = "${userId}_$today"
+                
+                // Bugün için kullanıcının başlangıç adım sayısını kontrol et
+                if (initialStepCount == null) {
+                    initialStepCount = prefs.getInt(key, -1)
+                    if (initialStepCount == -1) {
+                        // Kullanıcının bugünkü ilk girişi - başlangıç adımını kaydet
+                        initialStepCount = event.values[0].toInt()
+                        prefs.edit().putInt(key, initialStepCount!!).apply()
+                        
+                        // Firestore'dan mevcut adım verisini kontrol et
+                        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                        val docId = "${userId}_$today"
+                        db.collection("adim").document(docId).get().addOnSuccessListener { doc ->
+                            if (doc.exists()) {
+                                // Eğer kullanıcının bugün için zaten adım kaydı varsa, o değeri koru
+                                firestoreAdim = doc.getLong("adimsayisi")?.toInt() ?: 0
+                                updateNotification(firestoreAdim)
+                            } else {
+                                updateNotification(0)
+                            }
                         }
+                        return
                     }
-                    return
                 }
+                
+                // Bugün için attığı adım sayısını hesapla
+                val stepsToday = event.values[0].toInt() - (initialStepCount ?: 0)
+                updateNotification(stepsToday)
+                kaydetAdimFirestore(stepsToday)
             }
-            
-            // Bugün için attığı adım sayısını hesapla
-            val stepsToday = event.values[0].toInt() - (initialStepCount ?: 0)
-            updateNotification(stepsToday)
-            kaydetAdimFirestore(stepsToday)
+        } catch (e: Exception) {
+            android.util.Log.e("StepCounterService", "Sensör veri işleme hatası: ${e.message}", e)
         }
     }
 

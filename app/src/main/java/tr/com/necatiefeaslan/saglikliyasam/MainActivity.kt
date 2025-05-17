@@ -34,6 +34,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import android.os.Build
 import androidx.appcompat.app.AppCompatDelegate
+import android.widget.Toast
 
 class MainActivity : AppCompatActivity() {
 
@@ -139,12 +140,10 @@ class MainActivity : AppCompatActivity() {
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.ACTIVITY_RECOGNITION), 1001)
             } else {
-                val intent = Intent(this, StepCounterService::class.java)
-                ContextCompat.startForegroundService(this, intent)
+                startStepCounterService()
             }
         } else {
-            val intent = Intent(this, StepCounterService::class.java)
-            ContextCompat.startForegroundService(this, intent)
+            startStepCounterService()
         }
 
         // Android 13+ için bildirim izni iste
@@ -291,6 +290,21 @@ class MainActivity : AppCompatActivity() {
             ExistingPeriodicWorkPolicy.REPLACE,
             workRequest
         )
+    }
+
+    private fun startStepCounterService() {
+        try {
+            val intent = Intent(this, StepCounterService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ContextCompat.startForegroundService(this, intent)
+            } else {
+                startService(intent)
+            }
+            android.util.Log.d("MainActivity", "Adım sayacı servisi başlatıldı")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Adım sayacı servisi başlatılamadı: ${e.message}", e)
+            Toast.makeText(this, "Adım sayacı başlatılamadı", Toast.LENGTH_SHORT).show()
+        }
     }
 
     companion object {
