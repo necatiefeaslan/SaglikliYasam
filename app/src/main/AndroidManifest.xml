@@ -67,7 +67,8 @@
             android:name=".StepCounterService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="health" 
+            android:permission="android.permission.FOREGROUND_SERVICE_HEALTH" />
     </application>
 
 </manifest>

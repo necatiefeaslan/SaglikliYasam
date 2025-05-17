@@ -35,40 +35,31 @@ class StepCounterService : Service(), SensorEventListener {
         super.onCreate()
         Log.d(TAG, "StepCounterService onCreate")
         
-        try {
-            // Sensör yöneticisini başlat
-            sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-            stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
-            
-            // Sensör kontrolü
-            if (stepSensor == null) {
-                Log.w(TAG, "Bu cihazda adım sayacı sensörü bulunamadı")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Sensör başlatma hatası: ${e.message}", e)
+        // Sensör yöneticisini başlat
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+        
+        // Sensör kontrolü
+        if (stepSensor == null) {
+            Log.w(TAG, "Bu cihazda adım sayacı sensörü bulunamadı")
         }
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "onStartCommand çağrıldı")
         
-        try {
-            // Foreground servisi başlat
-            val notification = createNotification(0)
-            startForeground(NOTIFICATION_ID, notification)
-            Log.d(TAG, "Foreground servis başlatıldı")
-            
-            // Adım sensörünü kaydet (eğer varsa)
-            stepSensor?.let {
-                sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
-                Log.d(TAG, "Adım sensörü dinleniyor")
-            }
-            
-            // Veritabanından kayıtlı adım verilerini çek
-            fetchFirestoreSteps()
-        } catch (e: Exception) {
-            Log.e(TAG, "onStartCommand hatası: ${e.message}", e)
+        // Foreground servisi başlat
+        val notification = createNotification(0)
+        startForeground(NOTIFICATION_ID, notification)
+        
+        // Adım sensörünü kaydet (eğer varsa)
+        stepSensor?.let {
+            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+            Log.d(TAG, "Adım sensörü dinleniyor")
         }
+        
+        // Veritabanından kayıtlı adım verilerini çek
+        fetchFirestoreSteps()
         
         return START_STICKY
     }
@@ -85,18 +76,14 @@ class StepCounterService : Service(), SensorEventListener {
     }
     
     override fun onSensorChanged(event: SensorEvent?) {
-        try {
-            // Sadece adım sensörü olaylarını işle
-            if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
-                val totalSteps = event.values[0].toInt()
-                // Sadece adım değeri değişirse işle
-                if (totalSteps != lastTotalSteps) {
-                    lastTotalSteps = totalSteps
-                    processSteps(totalSteps)
-                }
+        // Sadece adım sensörü olaylarını işle
+        if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
+            val totalSteps = event.values[0].toInt()
+            // Sadece adım değeri değişirse işle
+            if (totalSteps != lastTotalSteps) {
+                lastTotalSteps = totalSteps
+                processSteps(totalSteps)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Sensör verisi işleme hatası: ${e.message}", e)
         }
     }
 

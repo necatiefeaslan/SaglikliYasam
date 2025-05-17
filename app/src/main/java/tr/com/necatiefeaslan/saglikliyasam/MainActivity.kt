@@ -28,14 +28,11 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import tr.com.necatiefeaslan.saglikliyasam.util.SuHatirlaticiWorker
 import java.util.concurrent.TimeUnit
 import android.Manifest
-import android.content.IntentFilter
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import android.os.Build
-import androidx.appcompat.app.AppCompatDelegate
 import android.util.Log
-import android.os.Handler
 
 class MainActivity : AppCompatActivity() {
 
@@ -45,111 +42,62 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d(TAG, "MainActivity onCreate başladı")
         
-        try {
-            Log.d(TAG, "MainActivity onCreate başladı")
-            
-            // Tema ayarlarını uygula
-            try {
-                val themePrefs = getSharedPreferences("SaglikliYasamPrefs", Context.MODE_PRIVATE)
-                val isDarkTheme = themePrefs.getBoolean("dark_theme", false)
-                if (isDarkTheme) {
-                    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-                } else {
-                    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Tema ayarlama hatası: ${e.message}", e)
-            }
+        // Layout bağlama
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        setSupportActionBar(binding.appBarMain.toolbar)
 
-            // Giriş yapılıp yapılmadığını kontrol et
-            val auth = FirebaseAuth.getInstance()
-            val currentUser = auth.currentUser
-            val sharedPreferences = getSharedPreferences("UserSession", Context.MODE_PRIVATE)
-            val isLoggedIn = sharedPreferences.getBoolean("isLoggedIn", false)
-            
-            if (currentUser == null || !isLoggedIn) {
-                // Kullanıcı giriş yapmamışsa LoginActivity'ye yönlendir
-                val intent = Intent(this, LoginActivity::class.java)
-                startActivity(intent)
-                finish() 
-                return
-            }
-
-            // Adım sayacı servisini kontrol et - yeniden başlatma talebi varsa
-            val shouldRestartStepService = intent.getBooleanExtra("RESTART_STEP_SERVICE", false)
-            if (shouldRestartStepService) {
-                Log.d(TAG, "Adım sayacı servisi yeniden başlatılıyor")
-                val stopIntent = Intent(this, StepCounterService::class.java)
-                stopService(stopIntent)
-                
-                // Kısa bir beklemeden sonra servisi başlat
-                Handler().postDelayed({
-                    checkStepCounterPermissionAndStart()
-                }, 500)
-            }
-
-            // Layout bağlama
-            binding = ActivityMainBinding.inflate(layoutInflater)
-            setContentView(binding.root)
-            setSupportActionBar(binding.appBarMain.toolbar)
-            
-            try {
-                // Navigation Drawer ve Navigation Component ayarları
-                val drawerLayout: DrawerLayout = binding.drawerLayout
-                val navView: NavigationView = binding.navView
-                val navController = findNavController(R.id.nav_host_fragment_content_main)
-                
-                appBarConfiguration = AppBarConfiguration(
-                    setOf(
-                        R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow
-                    ), drawerLayout
-                )
-                
-                setupActionBarWithNavController(navController, appBarConfiguration)
-                navView.setupWithNavController(navController)
-                
-                // Kullanıcı bilgilerini header'a yerleştir
-                loadUserInfoToHeader(navView, auth)
-            } catch (e: Exception) {
-                Log.e(TAG, "Navigation ayarlama hatası: ${e.message}", e)
-            }
-
-            // Su hatırlatıcı bildirimi için WorkManager başlat
-            setupWaterReminderWorker()
-            
-            // SMS izinlerini iste
-            requestSmsPermission()
-            
-            // BatteryLevelReceiver'ı programatik olarak kaydet
-            try {
-                val filter = IntentFilter().apply {
-                    addAction(Intent.ACTION_BATTERY_LOW)
-                    addAction(Intent.ACTION_BATTERY_CHANGED)
-                    addAction(Intent.ACTION_POWER_CONNECTED)
-                    addAction(Intent.ACTION_POWER_DISCONNECTED)
-                }
-                registerReceiver(tr.com.necatiefeaslan.saglikliyasam.util.BatteryLevelReceiver(), filter)
-                Log.d(TAG, "BatteryLevelReceiver kaydedildi")
-            } catch (e: Exception) {
-                Log.e(TAG, "BatteryLevelReceiver kayıt hatası: ${e.message}", e)
-            }
-            
-            // Adım servisi için izin kontrolü ve başlatma
-            checkStepCounterPermissionAndStart()
-            
-            // Android 13+ için bildirim izni iste
-            requestNotificationPermissionIfNeeded()
-            
-            // Kullanıcının telefon numarasını kontrol et
-            checkUserPhoneNumber()
-            
-            Log.d(TAG, "MainActivity onCreate tamamlandı")
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "MainActivity onCreate genel hatası: ${e.message}", e)
-            Toast.makeText(this, "Uygulama başlatma hatası: ${e.message}", Toast.LENGTH_LONG).show()
+        // Giriş kontrolü
+        val auth = FirebaseAuth.getInstance()
+        val currentUser = auth.currentUser
+        val sharedPreferences = getSharedPreferences("UserSession", Context.MODE_PRIVATE)
+        val isLoggedIn = sharedPreferences.getBoolean("isLoggedIn", false)
+        
+        if (currentUser == null || !isLoggedIn) {
+            // Kullanıcı giriş yapmamışsa LoginActivity'ye yönlendir
+            val intent = Intent(this, LoginActivity::class.java)
+            startActivity(intent)
+            finish() 
+            return
         }
+
+        // Adım sayacı servisini kontrol et - yeniden başlatma talebi varsa
+        val shouldRestartStepService = intent.getBooleanExtra("RESTART_STEP_SERVICE", false)
+        if (shouldRestartStepService) {
+            Log.d(TAG, "Adım sayacı servisi yeniden başlatılıyor")
+            val stopIntent = Intent(this, StepCounterService::class.java)
+            stopService(stopIntent)
+        }
+
+        // Navigation Drawer ve Navigation Component ayarları
+        val drawerLayout: DrawerLayout = binding.drawerLayout
+        val navView: NavigationView = binding.navView
+        val navController = findNavController(R.id.nav_host_fragment_content_main)
+        
+        appBarConfiguration = AppBarConfiguration(
+            setOf(
+                R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow
+            ), drawerLayout
+        )
+        
+        setupActionBarWithNavController(navController, appBarConfiguration)
+        navView.setupWithNavController(navController)
+        
+        // Kullanıcı bilgilerini header'a yerleştir
+        loadUserInfoToHeader(navView, auth)
+
+        // Adım sayacı servisini başlat
+        startStepCounterService()
+        
+        // Su hatırlatıcı bildirimi için WorkManager başlat
+        setupWaterReminderWorker()
+        
+        // Android 13+ için bildirim izni iste
+        requestNotificationPermissionIfNeeded()
+        
+        Log.d(TAG, "MainActivity onCreate tamamlandı")
     }
     
     private fun loadUserInfoToHeader(navView: NavigationView, auth: FirebaseAuth) {
