@@ -6,15 +6,13 @@ import android.content.Intent
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import tr.com.necatiefeaslan.saglikliyasam.ui.settings.SettingsFragment
 import java.util.concurrent.TimeUnit
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            // Kullanıcının seçtiği bildirim sıklığını al
-            val prefs = context.getSharedPreferences(SettingsFragment.PREFS_NAME, Context.MODE_PRIVATE)
-            val reminderMinutes = prefs.getInt(SettingsFragment.PREF_WATER_REMINDER_MINUTES, 60)
+            // Sabit bildirim sıklığı (30 dakika)
+            val reminderMinutes = 30
             
             // Su hatırlatıcıyı yeniden başlat
             val workRequest = PeriodicWorkRequestBuilder<SuHatirlaticiWorker>(
@@ -22,7 +20,7 @@ class BootReceiver : BroadcastReceiver() {
             ).build()
             
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-                SettingsFragment.WATER_REMINDER_WORK_NAME,
+                "water_reminder_periodic",
                 ExistingPeriodicWorkPolicy.REPLACE,
                 workRequest
             )

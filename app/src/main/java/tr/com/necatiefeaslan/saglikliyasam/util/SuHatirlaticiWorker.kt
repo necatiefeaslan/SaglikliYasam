@@ -57,17 +57,8 @@ class SuHatirlaticiWorker(
 
     private fun showNotification() {
         try {
-            // Kullanıcının ayarladığı bildirim sıklığını al
-            val prefs = applicationContext.getSharedPreferences("SaglikliYasamPrefs", Context.MODE_PRIVATE)
-            val reminderMinutes = prefs.getInt("water_reminder_minutes", 60)
-            
-            // Kullanıcı ayarına göre zaman dilimini belirleme
-            val timeText = when (reminderMinutes) {
-                30 -> "30 dakikada"
-                60 -> "saatte"
-                120 -> "2 saatte"
-                else -> "$reminderMinutes dakikada"
-            }
+            // Sabit bildirim sıklığı (30 dakika)
+            val timeText = "30 dakikada"
             
             // Varsayılan bildirim sesi
             val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
@@ -84,7 +75,7 @@ class SuHatirlaticiWorker(
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
             
-            Log.d(TAG, "Su hatırlatıcı bildirimi gösterildi: Sıklık = $reminderMinutes dk")
+            Log.d(TAG, "Su hatırlatıcı bildirimi gösterildi: Sıklık = 30 dk")
         } catch (e: Exception) {
             Log.e(TAG, "Bildirim gösterme hatası: ${e.message}", e)
         }

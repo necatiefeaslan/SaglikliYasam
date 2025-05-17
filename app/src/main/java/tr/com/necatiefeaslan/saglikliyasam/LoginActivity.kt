@@ -69,7 +69,10 @@ class LoginActivity : AppCompatActivity() {
                         editor.putBoolean("isLoggedIn", true)  // Oturum açma durumunu kaydet
                         editor.apply()
 
-                        startActivity(Intent(this, MainActivity::class.java))
+                        // MainActivity'ye yönlendir
+                        val intent = Intent(this, MainActivity::class.java)
+                        intent.putExtra("RESTART_STEP_SERVICE", true) // Adım servisi yeniden başlatma sinyali
+                        startActivity(intent)
                         finish()
                     } else {
                         Toast.makeText(this, "Giriş başarısız: ${task.exception?.message}",

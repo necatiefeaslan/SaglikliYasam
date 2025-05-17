@@ -22,7 +22,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.bumptech.glide.Glide
 import tr.com.necatiefeaslan.saglikliyasam.ui.changepassword.ChangePasswordFragment
-import tr.com.necatiefeaslan.saglikliyasam.ui.settings.SettingsFragment
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -36,6 +35,7 @@ import androidx.core.content.ContextCompat
 import android.os.Build
 import androidx.appcompat.app.AppCompatDelegate
 import android.util.Log
+import android.os.Handler
 
 class MainActivity : AppCompatActivity() {
 
@@ -76,6 +76,19 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
+            // Adım sayacı servisini kontrol et - yeniden başlatma talebi varsa
+            val shouldRestartStepService = intent.getBooleanExtra("RESTART_STEP_SERVICE", false)
+            if (shouldRestartStepService) {
+                Log.d(TAG, "Adım sayacı servisi yeniden başlatılıyor")
+                val stopIntent = Intent(this, StepCounterService::class.java)
+                stopService(stopIntent)
+                
+                // Kısa bir beklemeden sonra servisi başlat
+                Handler().postDelayed({
+                    checkStepCounterPermissionAndStart()
+                }, 500)
+            }
+
             // Layout bağlama
             binding = ActivityMainBinding.inflate(layoutInflater)
             setContentView(binding.root)
@@ -89,7 +102,7 @@ class MainActivity : AppCompatActivity() {
                 
                 appBarConfiguration = AppBarConfiguration(
                     setOf(
-                        R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow, R.id.nav_settings
+                        R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow
                     ), drawerLayout
                 )
                 
@@ -377,11 +390,10 @@ class MainActivity : AppCompatActivity() {
         try {
             Log.d(TAG, "Su hatırlatıcı WorkManager ayarlanıyor")
             
-            // Kullanıcının seçtiği bildirim sıklığını al
-            val prefs = getSharedPreferences(SettingsFragment.PREFS_NAME, Context.MODE_PRIVATE)
-            val reminderMinutes = prefs.getInt(SettingsFragment.PREF_WATER_REMINDER_MINUTES, 60)
+            // Sabit bildirim sıklığı (30 dakika)
+            val reminderMinutes = 30
             
-            // WorkManager'ı kullanıcı tercihleriyle başlat
+            // WorkManager'ı varsayılan değerle başlat
             val workRequest = PeriodicWorkRequestBuilder<SuHatirlaticiWorker>(
                 reminderMinutes.toLong(), TimeUnit.MINUTES
             )
@@ -389,7 +401,7 @@ class MainActivity : AppCompatActivity() {
                 .build()
                 
             WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-                SettingsFragment.WATER_REMINDER_WORK_NAME,
+                "water_reminder_periodic",
                 ExistingPeriodicWorkPolicy.REPLACE,
                 workRequest
             )

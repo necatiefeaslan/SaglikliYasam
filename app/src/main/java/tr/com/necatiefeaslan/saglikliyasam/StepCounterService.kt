@@ -25,6 +25,7 @@ class StepCounterService : Service(), SensorEventListener {
     private var stepSensor: Sensor? = null
     private val initialStepCountMap = mutableMapOf<String, Int>()
     private var currentSteps: Int = 0
+    private var lastTotalSteps: Int = 0
     
     override fun onBind(intent: Intent?): IBinder? {
         return null
@@ -88,7 +89,11 @@ class StepCounterService : Service(), SensorEventListener {
             // Sadece adım sensörü olaylarını işle
             if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
                 val totalSteps = event.values[0].toInt()
-                processSteps(totalSteps)
+                // Sadece adım değeri değişirse işle
+                if (totalSteps != lastTotalSteps) {
+                    lastTotalSteps = totalSteps
+                    processSteps(totalSteps)
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Sensör verisi işleme hatası: ${e.message}", e)
@@ -138,8 +143,8 @@ class StepCounterService : Service(), SensorEventListener {
             // Bildirimi güncelle
             updateNotification(currentSteps)
             
-            // Firestore'a kaydet
-            saveStepsToFirestore(currentSteps)
+            // Firestore'a kaydet - mevcut veriyi kontrol ederek
+            updateStepsInFirestore(currentSteps)
             
         } catch (e: Exception) {
             Log.e(TAG, "Adım işleme hatası: ${e.message}", e)
@@ -201,7 +206,7 @@ class StepCounterService : Service(), SensorEventListener {
         }
     }
     
-    private fun saveStepsToFirestore(steps: Int) {
+    private fun updateStepsInFirestore(steps: Int) {
         try {
             val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
             val auth = FirebaseAuth.getInstance()
@@ -213,19 +218,30 @@ class StepCounterService : Service(), SensorEventListener {
             val adimKoleksiyonu = db.collection("adim")
             val docRef = adimKoleksiyonu.document(docId)
             
+            // Önce mevcut belgeyi kontrol et
             docRef.get().addOnSuccessListener { docSnapshot ->
                 try {
                     // Varsayılan hedef adım
-                    val hedefAdim = if (docSnapshot.exists()) 
-                        docSnapshot.getLong("hedefadim")?.toInt() ?: 8000 
-                    else 
-                        8000
+                    var hedefAdim = 8000
+                    var mevcutAdimlar = steps
+                    
+                    // Eğer belge varsa ve adım sayısı kayıtlı değerden küçükse, mevcut değeri kullan
+                    if (docSnapshot.exists()) {
+                        hedefAdim = docSnapshot.getLong("hedefadim")?.toInt() ?: 8000
+                        val kayitliAdimlar = docSnapshot.getLong("adimsayisi")?.toInt() ?: 0
+                        
+                        if (kayitliAdimlar > steps) {
+                            Log.d(TAG, "Kaydedilen adım sayısı sensör değerinden büyük, mevcut değer korunuyor: $kayitliAdimlar")
+                            mevcutAdimlar = kayitliAdimlar
+                            updateNotification(mevcutAdimlar)
+                        }
+                    }
                     
                     // Yeni verileri hazırla
                     val adimKayit = hashMapOf(
                         "id" to docId,
                         "tarih" to today,
-                        "adimsayisi" to steps,
+                        "adimsayisi" to mevcutAdimlar,
                         "kullaniciId" to userId,
                         "hedefadim" to hedefAdim
                     )
@@ -233,7 +249,7 @@ class StepCounterService : Service(), SensorEventListener {
                     // Veritabanına kaydet
                     docRef.set(adimKayit)
                         .addOnSuccessListener {
-                            Log.d(TAG, "Adım verileri Firestore'a kaydedildi: $steps")
+                            Log.d(TAG, "Adım verileri Firestore'a kaydedildi: $mevcutAdimlar")
                         }
                         .addOnFailureListener { e ->
                             Log.e(TAG, "Adım verileri kaydedilemedi: ${e.message}", e)
