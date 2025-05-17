@@ -21,6 +21,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.bumptech.glide.Glide
 import tr.com.necatiefeaslan.saglikliyasam.ui.changepassword.ChangePasswordFragment
+import tr.com.necatiefeaslan.saglikliyasam.ui.settings.SettingsFragment
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -117,23 +118,21 @@ class MainActivity : AppCompatActivity() {
                 }
         }
 
-        // Su hatırlatıcı bildirimi için WorkManager başlat (30 dakikada bir)
-        val workRequest = PeriodicWorkRequestBuilder<SuHatirlaticiWorker>(30, TimeUnit.MINUTES)
-            .setInitialDelay(30, TimeUnit.MINUTES)
-            .build()
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "su_hatirlatici",
-            ExistingPeriodicWorkPolicy.REPLACE,
-            workRequest
-        )
+        // Su hatırlatıcı bildirimi için WorkManager başlat (kullanıcı tercihine göre)
+        setupWaterReminderWorker()
 
-        // Runtime SMS izni iste
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.SEND_SMS), 1)
+        // SMS izinlerini iste
+        requestSmsPermission()
+
+        // BatteryLevelReceiver'ı programatik olarak kaydet
+        // Manifest'teki kayıta ek olarak, bazı telefonlar için daha güvenli
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_BATTERY_LOW)
+            addAction(Intent.ACTION_BATTERY_CHANGED)
+            addAction(Intent.ACTION_POWER_CONNECTED)
+            addAction(Intent.ACTION_POWER_DISCONNECTED)
         }
-
-        // BatteryLevelReceiver gerekli intent filterleri ile manifest dosyasında tanımlandı
-        // Manifest içinde kayıtlı olduğu için burada registerReceiver kullanımına gerek yok
+        registerReceiver(tr.com.necatiefeaslan.saglikliyasam.util.BatteryLevelReceiver(), filter)
         
         // Adım servisi için izin kontrolü ve başlatma
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -152,6 +151,83 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1002)
+            }
+        }
+        
+        // Kullanıcının telefon numarasını kontrol et
+        checkUserPhoneNumber()
+    }
+
+    private fun requestSmsPermission() {
+        // Eğer SMS izni yoksa
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+            // İzin istenmiş mi diye kontrol et
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.SEND_SMS)) {
+                // Kullanıcıya neden izin istediğimizi açıkla
+                androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle("SMS İzni Gerekli")
+                    .setMessage("Pil seviyeniz düştüğünde size SMS gönderebilmemiz için bu izne ihtiyacımız var.")
+                    .setPositiveButton("İzin Ver") { _, _ ->
+                        ActivityCompat.requestPermissions(
+                            this,
+                            arrayOf(Manifest.permission.SEND_SMS),
+                            PERMISSION_REQUEST_SMS
+                        )
+                    }
+                    .setNegativeButton("İptal", null)
+                    .show()
+            } else {
+                // İzni doğrudan iste
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.SEND_SMS),
+                    PERMISSION_REQUEST_SMS
+                )
+            }
+        }
+    }
+    
+    private fun checkUserPhoneNumber() {
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val db = FirebaseFirestore.getInstance()
+        
+        db.collection("kullanicilar").document(userId).get()
+            .addOnSuccessListener { document ->
+                if (document != null && document.exists()) {
+                    val phoneNumber = document.getString("telefon")
+                    
+                    if (phoneNumber.isNullOrEmpty()) {
+                        // Kullanıcının telefon numarası yok, bilgilendirme göster
+                        androidx.appcompat.app.AlertDialog.Builder(this)
+                            .setTitle("Telefon Numarası Gerekli")
+                            .setMessage("Pil uyarıları için telefon numaranızı profil ayarlarından ekleyin.")
+                            .setPositiveButton("Tamam", null)
+                            .show()
+                    }
+                }
+            }
+    }
+    
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        
+        when (requestCode) {
+            PERMISSION_REQUEST_SMS -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // SMS izni verildi
+                    com.google.android.material.snackbar.Snackbar.make(
+                        binding.root,
+                        "SMS izni verildi, pil uyarıları alacaksınız",
+                        Snackbar.LENGTH_LONG
+                    ).show()
+                } else {
+                    // SMS izni reddedildi
+                    com.google.android.material.snackbar.Snackbar.make(
+                        binding.root,
+                        "SMS izni reddedildi, pil uyarıları almayacaksınız",
+                        Snackbar.LENGTH_LONG
+                    ).show()
+                }
             }
         }
     }
@@ -196,5 +272,28 @@ class MainActivity : AppCompatActivity() {
     override fun onSupportNavigateUp(): Boolean {
         val navController = findNavController(R.id.nav_host_fragment_content_main)
         return navController.navigateUp(appBarConfiguration) || super.onSupportNavigateUp()
+    }
+
+    private fun setupWaterReminderWorker() {
+        // Kullanıcının seçtiği bildirim sıklığını al
+        val prefs = getSharedPreferences(SettingsFragment.PREFS_NAME, Context.MODE_PRIVATE)
+        val reminderMinutes = prefs.getInt(SettingsFragment.PREF_WATER_REMINDER_MINUTES, 60)
+        
+        // WorkManager'ı kullanıcı tercihleriyle başlat
+        val workRequest = PeriodicWorkRequestBuilder<SuHatirlaticiWorker>(
+            reminderMinutes.toLong(), TimeUnit.MINUTES
+        )
+            .setInitialDelay(reminderMinutes.toLong(), TimeUnit.MINUTES)
+            .build()
+            
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            SettingsFragment.WATER_REMINDER_WORK_NAME,
+            ExistingPeriodicWorkPolicy.REPLACE,
+            workRequest
+        )
+    }
+
+    companion object {
+        private const val PERMISSION_REQUEST_SMS = 1
     }
 }

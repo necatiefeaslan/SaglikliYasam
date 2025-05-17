@@ -22,6 +22,10 @@ class SuHatirlaticiWorker(
     override fun doWork(): Result {
         createNotificationChannel()
         showNotification()
+        
+        // Hata ayıklama için log ekle
+        android.util.Log.d("SuHatirlaticiWorker", "Su hatırlatıcı bildirimi gönderildi - ${java.util.Date()}")
+        
         return Result.success()
     }
 
@@ -39,11 +43,24 @@ class SuHatirlaticiWorker(
     }
 
     private fun showNotification() {
+        // Kullanıcının ayarladığı bildirim sıklığını al
+        val prefs = applicationContext.getSharedPreferences("SaglikliYasamPrefs", Context.MODE_PRIVATE)
+        val reminderMinutes = prefs.getInt("water_reminder_minutes", 60)
+        
+        // Kullanıcı ayarına göre zaman dilimini belirleme
+        val timeText = when (reminderMinutes) {
+            30 -> "30 dakikada"
+            60 -> "saatte"
+            120 -> "2 saatte"
+            else -> "$reminderMinutes dakikada"
+        }
+        
         val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_water)
             .setContentTitle("Su İçme Zamanı")
-            .setContentText("Sağlıklı kalmak için su içmeyi unutmayın!")
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentText("Sağlıklı kalmak için $timeText bir su için!")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVibrate(longArrayOf(0, 500, 200, 500))
             .setAutoCancel(true)
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

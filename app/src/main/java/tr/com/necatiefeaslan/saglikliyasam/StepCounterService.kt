@@ -23,10 +23,18 @@ class StepCounterService : Service(), SensorEventListener {
         super.onCreate()
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+        
+        // Her başlangıçta initialStepCount'u sıfırla
+        initialStepCount = null
+        
+        // Firestore'dan kullanıcının mevcut adım verisini çek
         fetchFirestoreAdim()
+        
+        // Adım sensörünü başlat
         stepSensor?.let {
             sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
         }
+        
         startForeground(1, createNotification(0))
     }
 
@@ -42,13 +50,32 @@ class StepCounterService : Service(), SensorEventListener {
             val userId = auth.currentUser?.uid ?: return
             val prefs = getSharedPreferences("StepPrefs", Context.MODE_PRIVATE)
             val key = "${userId}_$today"
+            
+            // Bugün için kullanıcının başlangıç adım sayısını kontrol et
             if (initialStepCount == null) {
                 initialStepCount = prefs.getInt(key, -1)
                 if (initialStepCount == -1) {
+                    // Kullanıcının bugünkü ilk girişi - başlangıç adımını kaydet
                     initialStepCount = event.values[0].toInt()
                     prefs.edit().putInt(key, initialStepCount!!).apply()
+                    
+                    // Firestore'dan mevcut adım verisini kontrol et
+                    val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                    val docId = "${userId}_$today"
+                    db.collection("adim").document(docId).get().addOnSuccessListener { doc ->
+                        if (doc.exists()) {
+                            // Eğer kullanıcının bugün için zaten adım kaydı varsa, o değeri koru
+                            firestoreAdim = doc.getLong("adimsayisi")?.toInt() ?: 0
+                            updateNotification(firestoreAdim)
+                        } else {
+                            updateNotification(0)
+                        }
+                    }
+                    return
                 }
             }
+            
+            // Bugün için attığı adım sayısını hesapla
             val stepsToday = event.values[0].toInt() - (initialStepCount ?: 0)
             updateNotification(stepsToday)
             kaydetAdimFirestore(stepsToday)
@@ -86,10 +113,14 @@ class StepCounterService : Service(), SensorEventListener {
         val ref = db.collection("adim").document(docId)
         ref.get().addOnSuccessListener { doc ->
             val hedef = if (doc.exists()) doc.getLong("hedefadim")?.toInt() ?: 8000 else 8000
+            
+            // Adım sayısı negatif olamaz
+            val gecerliAdim = if (adim < 0) 0 else adim
+            
             val adimKayit = hashMapOf(
                 "id" to docId,
                 "tarih" to today,
-                "adimsayisi" to adim,
+                "adimsayisi" to gecerliAdim,
                 "kullaniciId" to userId,
                 "hedefadim" to hedef
             )
@@ -106,6 +137,14 @@ class StepCounterService : Service(), SensorEventListener {
         db.collection("adim").document(docId).get()
             .addOnSuccessListener { doc ->
                 firestoreAdim = if (doc.exists()) doc.getLong("adimsayisi")?.toInt() ?: 0 else 0
+                
+                // Bildirimi güncelle
+                updateNotification(firestoreAdim)
+            }
+            .addOnFailureListener {
+                // Başarısız olursa sıfır değer kullan
+                firestoreAdim = 0
+                updateNotification(0)
             }
     }
 } 

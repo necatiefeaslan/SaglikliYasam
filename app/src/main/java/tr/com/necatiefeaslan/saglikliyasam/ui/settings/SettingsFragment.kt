@@ -106,6 +106,9 @@ class SettingsFragment : Fragment() {
     private fun scheduleWaterReminder(minutes: Int) {
         val workManager = WorkManager.getInstance(requireContext())
         
+        // Log ekle
+        android.util.Log.d("SettingsFragment", "Su hatırlatıcı sıklığı değiştirildi: $minutes dakika")
+        
         // Eski işi iptal et
         workManager.cancelUniqueWork(WATER_REMINDER_WORK_NAME)
         
@@ -119,5 +122,12 @@ class SettingsFragment : Fragment() {
             ExistingPeriodicWorkPolicy.REPLACE,
             waterReminderRequest
         )
+        
+        // Bildirimde ayarın kaydedildiğini teyit et
+        Toast.makeText(
+            context, 
+            "Su hatırlatıcı $minutes dakikada bir çalışacak şekilde ayarlandı", 
+            Toast.LENGTH_LONG
+        ).show()
     }
 } 
