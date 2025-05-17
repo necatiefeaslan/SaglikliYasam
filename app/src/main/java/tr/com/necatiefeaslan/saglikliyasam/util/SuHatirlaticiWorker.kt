@@ -3,11 +3,13 @@ package tr.com.necatiefeaslan.saglikliyasam.util
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import tr.com.necatiefeaslan.saglikliyasam.R
+import android.util.Log
 
 class SuHatirlaticiWorker(
     private val context: Context,
@@ -16,54 +18,75 @@ class SuHatirlaticiWorker(
 
     companion object {
         private const val CHANNEL_ID = "su_hatirlatici_channel"
-        private const val NOTIFICATION_ID = 1
+        private const val NOTIFICATION_ID = 2222
+        private const val TAG = "SuHatirlaticiWorker"
     }
 
     override fun doWork(): Result {
-        createNotificationChannel()
-        showNotification()
-        
-        // Hata ayıklama için log ekle
-        android.util.Log.d("SuHatirlaticiWorker", "Su hatırlatıcı bildirimi gönderildi - ${java.util.Date()}")
-        
-        return Result.success()
+        try {
+            Log.d(TAG, "Su hatırlatıcı başladı - ${java.util.Date()}")
+            createNotificationChannel()
+            showNotification()
+            Log.d(TAG, "Su hatırlatıcı bildirimi gönderildi")
+            return Result.success()
+        } catch (e: Exception) {
+            Log.e(TAG, "Su hatırlatıcı hatası: ${e.message}", e)
+            return Result.failure()
+        }
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "Su Hatırlatıcı"
-            val descriptionText = "Su içme hatırlatmaları için bildirim kanalı"
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
-            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
-                description = descriptionText
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val name = "Su Hatırlatıcı"
+                val descriptionText = "Su içme hatırlatmaları için bildirim kanalı"
+                val importance = NotificationManager.IMPORTANCE_HIGH
+                val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+                    description = descriptionText
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 500, 200, 500)
+                }
+                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.createNotificationChannel(channel)
+                Log.d(TAG, "Bildirim kanalı oluşturuldu")
             }
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
+        } catch (e: Exception) {
+            Log.e(TAG, "Bildirim kanalı oluşturma hatası: ${e.message}", e)
         }
     }
 
     private fun showNotification() {
-        // Kullanıcının ayarladığı bildirim sıklığını al
-        val prefs = applicationContext.getSharedPreferences("SaglikliYasamPrefs", Context.MODE_PRIVATE)
-        val reminderMinutes = prefs.getInt("water_reminder_minutes", 60)
-        
-        // Kullanıcı ayarına göre zaman dilimini belirleme
-        val timeText = when (reminderMinutes) {
-            30 -> "30 dakikada"
-            60 -> "saatte"
-            120 -> "2 saatte"
-            else -> "$reminderMinutes dakikada"
-        }
-        
-        val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_water)
-            .setContentTitle("Su İçme Zamanı")
-            .setContentText("Sağlıklı kalmak için $timeText bir su için!")
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setVibrate(longArrayOf(0, 500, 200, 500))
-            .setAutoCancel(true)
+        try {
+            // Kullanıcının ayarladığı bildirim sıklığını al
+            val prefs = applicationContext.getSharedPreferences("SaglikliYasamPrefs", Context.MODE_PRIVATE)
+            val reminderMinutes = prefs.getInt("water_reminder_minutes", 60)
+            
+            // Kullanıcı ayarına göre zaman dilimini belirleme
+            val timeText = when (reminderMinutes) {
+                30 -> "30 dakikada"
+                60 -> "saatte"
+                120 -> "2 saatte"
+                else -> "$reminderMinutes dakikada"
+            }
+            
+            // Varsayılan bildirim sesi
+            val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            
+            val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_launcher_foreground) // ic_water yerine varsayılan simge kullan
+                .setContentTitle("Su İçme Zamanı")
+                .setContentText("Sağlıklı kalmak için $timeText bir su için!")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setVibrate(longArrayOf(0, 500, 200, 500))
+                .setSound(defaultSoundUri)
+                .setAutoCancel(true)
 
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
+            
+            Log.d(TAG, "Su hatırlatıcı bildirimi gösterildi: Sıklık = $reminderMinutes dk")
+        } catch (e: Exception) {
+            Log.e(TAG, "Bildirim gösterme hatası: ${e.message}", e)
+        }
     }
 } 
