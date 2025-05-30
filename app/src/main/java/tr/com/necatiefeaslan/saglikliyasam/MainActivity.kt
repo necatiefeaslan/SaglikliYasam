@@ -97,6 +97,10 @@ class MainActivity : AppCompatActivity() {
         // Android 13+ için bildirim izni iste
         requestNotificationPermissionIfNeeded()
         
+        // SMS izni kontrolü ve kullanıcı telefon numarası kontrolü
+        requestSmsPermission()
+        checkUserPhoneNumber()
+        
         Log.d(TAG, "MainActivity onCreate tamamlandı")
     }
     
@@ -202,6 +206,9 @@ class MainActivity : AppCompatActivity() {
                         PERMISSION_REQUEST_SMS
                     )
                 }
+            } else {
+                // SMS izni zaten var, kullanıcı telefon numarasını kontrol et
+                checkUserPhoneNumber()
             }
         } catch (e: Exception) {
             Log.e(TAG, "SMS izni isteme hatası: ${e.message}", e)

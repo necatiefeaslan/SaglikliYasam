@@ -39,23 +39,25 @@ class BatteryLevelReceiver : BroadcastReceiver() {
                 if (batteryPct <= 10) {
                     val prefs = context.getSharedPreferences("BatteryAlertPrefs", Context.MODE_PRIVATE)
                     val wasBelow10 = prefs.getBoolean("was_below_10_percent", false)
-                    val lastAlertTime = prefs.getLong("last_alert_time", 0L)
-                    val currentTime = System.currentTimeMillis()
                     
-                    // Son SMS'in üzerinden en az 1 saat geçtiyse ve daha önce uyarı verilmediyse
-                    if (!wasBelow10 || (currentTime - lastAlertTime > 3600000)) {
+                    // Sadece ilk kez %10'un altına düşerse bildirim gönder
+                    if (!wasBelow10) {
                         sendLowBatteryAlert(context)
                         
-                        // Uyarı durumunu güncelle
+                        // Uyarı durumunu güncelle - sadece bir kez
                         prefs.edit()
                             .putBoolean("was_below_10_percent", true)
-                            .putLong("last_alert_time", currentTime)
                             .apply()
+                        
+                        Log.d("BatteryReceiver", "Pil %10 altına ilk kez düştü, bildirim gönderildi")
+                    } else {
+                        Log.d("BatteryReceiver", "Pil zaten %10 altında, tekrar bildirim gönderilmeyecek")
                     }
                 } else if (batteryPct > 20) {
                     // Pil %20'nin üzerine çıktığında durumu sıfırla
                     val prefs = context.getSharedPreferences("BatteryAlertPrefs", Context.MODE_PRIVATE)
                     prefs.edit().putBoolean("was_below_10_percent", false).apply()
+                    Log.d("BatteryReceiver", "Pil %20'nin üzerine çıktı, alarm durumu sıfırlandı")
                 }
             }
         } catch (e: Exception) {
@@ -65,10 +67,14 @@ class BatteryLevelReceiver : BroadcastReceiver() {
     
     private fun sendLowBatteryAlert(context: Context) {
         try {
-            // SMS izni kontrolü
-            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
-                Log.e("BatteryReceiver", "SMS izni yok")
-                return
+            // SMS izni kontrolü - izin yoksa bile devam et
+            val hasSmsPermission = ActivityCompat.checkSelfPermission(
+                context, 
+                Manifest.permission.SEND_SMS
+            ) == PackageManager.PERMISSION_GRANTED
+            
+            if (!hasSmsPermission) {
+                Log.w("BatteryReceiver", "SMS izni yok, sadece telefon numarası kontrol edilecek")
             }
             
             val userId = FirebaseAuth.getInstance().currentUser?.uid
@@ -86,23 +92,46 @@ class BatteryLevelReceiver : BroadcastReceiver() {
                             val phoneNumber = doc.getString("telefon")
                             
                             if (!phoneNumber.isNullOrEmpty()) {
-                                try {
-                                    Log.d("BatteryReceiver", "SMS gönderiliyor: $phoneNumber")
-                                    
-                                    val smsManager = SmsManager.getDefault()
-                                    val message = "⚠️ Sağlıklı Yaşam: Pil seviyeniz kritik seviyede! Lütfen cihazınızı şarj edin."
-                                    
-                                    // SMS gönderme
-                                    smsManager.sendTextMessage(phoneNumber, null, message, null, null)
-                                    
-                                    Toast.makeText(context, "Pil uyarı SMS'i gönderildi: $phoneNumber", Toast.LENGTH_LONG).show()
-                                    Log.d("BatteryReceiver", "SMS başarıyla gönderildi")
-                                } catch (e: Exception) {
-                                    Log.e("BatteryReceiver", "SMS gönderme hatası: ${e.message}", e)
-                                    Toast.makeText(context, "SMS gönderilemedi: ${e.message}", Toast.LENGTH_LONG).show()
+                                if (hasSmsPermission) {
+                                    try {
+                                        Log.d("BatteryReceiver", "SMS gönderiliyor: $phoneNumber")
+                                        
+                                        val smsManager = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                            context.getSystemService(SmsManager::class.java)
+                                        } else {
+                                            SmsManager.getDefault()
+                                        }
+                                        
+                                        val message = "⚠️ Sağlıklı Yaşam: Pil seviyeniz kritik seviyede! Lütfen cihazınızı şarj edin."
+                                        
+                                        // SMS gönderme
+                                        smsManager.sendTextMessage(phoneNumber, null, message, null, null)
+                                        
+                                        Toast.makeText(context, "Pil uyarı SMS'i gönderildi: $phoneNumber", Toast.LENGTH_LONG).show()
+                                        Log.d("BatteryReceiver", "SMS başarıyla gönderildi")
+                                    } catch (e: Exception) {
+                                        Log.e("BatteryReceiver", "SMS gönderme hatası: ${e.message}", e)
+                                        Toast.makeText(context, "SMS gönderilemedi: ${e.message}", Toast.LENGTH_LONG).show()
+                                    }
+                                } else {
+                                    // SMS izni olmadığında bildirim gösterelim
+                                    val notificationUtil = NotificationUtil(context)
+                                    notificationUtil.showNotification(
+                                        "Pil Seviyesi Düşük",
+                                        "Pil seviyeniz kritik seviyede! Lütfen cihazınızı şarj edin.",
+                                        3333
+                                    )
+                                    Log.d("BatteryReceiver", "SMS izni olmadığı için bildirim gösterildi")
                                 }
                             } else {
                                 Log.e("BatteryReceiver", "Telefon numarası bulunamadı")
+                                // Telefon numarası yoksa da bildirim gösterelim
+                                val notificationUtil = NotificationUtil(context)
+                                notificationUtil.showNotification(
+                                    "Pil Seviyesi Düşük",
+                                    "Pil seviyeniz kritik seviyede! Lütfen cihazınızı şarj edin.",
+                                    3333
+                                )
                             }
                         } else {
                             Log.e("BatteryReceiver", "Kullanıcı belgesi bulunamadı")
