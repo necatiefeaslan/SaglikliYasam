@@ -33,6 +33,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import android.os.Build
 import android.util.Log
+import tr.com.necatiefeaslan.saglikliyasam.util.HaftalikRaporWorker
+import java.util.Calendar
+import androidx.work.OneTimeWorkRequestBuilder
 
 class MainActivity : AppCompatActivity() {
 
@@ -48,6 +51,11 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setSupportActionBar(binding.appBarMain.toolbar)
+
+        // Test butonunu ayarla
+        binding.appBarMain.fabTestReport.setOnClickListener {
+            testHaftalikRapor()
+        }
 
         // Giriş kontrolü
         val auth = FirebaseAuth.getInstance()
@@ -93,6 +101,9 @@ class MainActivity : AppCompatActivity() {
         
         // Su hatırlatıcı bildirimi için WorkManager başlat
         setupWaterReminderWorker()
+        
+        // Haftalık rapor bildirimi için WorkManager başlat
+        setupWeeklyReportWorker()
         
         // Android 13+ için bildirim izni iste
         requestNotificationPermissionIfNeeded()
@@ -389,6 +400,70 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "Adım sayacı servisi başlatma hatası: ${e.message}", e)
             Toast.makeText(this, "Adım sayacı başlatılamadı: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun setupWeeklyReportWorker() {
+        try {
+            val workManager = WorkManager.getInstance(this)
+            
+            // Her Pazar 00:00'da çalışacak şekilde zamanla
+            val now = Calendar.getInstance()
+            
+            // Bir sonraki Pazar günü 00:00 için hesaplama
+            val nextSunday = Calendar.getInstance()
+            nextSunday.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
+            nextSunday.set(Calendar.HOUR_OF_DAY, 0)
+            nextSunday.set(Calendar.MINUTE, 0)
+            nextSunday.set(Calendar.SECOND, 0)
+            nextSunday.set(Calendar.MILLISECOND, 0)
+            
+            // Eğer bugün Pazar ve saat 00:00'ı geçtiyse, bir sonraki haftaya ayarla
+            if (now.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY && 
+                now.timeInMillis > nextSunday.timeInMillis) {
+                nextSunday.add(Calendar.WEEK_OF_YEAR, 1)
+            }
+            
+            // İlk çalışma için geçmesi gereken süre
+            val initialDelay = nextSunday.timeInMillis - now.timeInMillis
+            
+            Log.d(TAG, "Haftalık rapor zamanlandı: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(nextSunday.time)}")
+            
+            // İş isteği oluştur (her hafta tekrarlanacak)
+            val weeklyReportRequest = androidx.work.PeriodicWorkRequestBuilder<HaftalikRaporWorker>(
+                7, TimeUnit.DAYS
+            )
+            .setInitialDelay(initialDelay, TimeUnit.MILLISECONDS)
+            .build()
+            
+            // İşi planla
+            workManager.enqueueUniquePeriodicWork(
+                "weekly_report_work",
+                androidx.work.ExistingPeriodicWorkPolicy.REPLACE,
+                weeklyReportRequest
+            )
+            
+            Log.d(TAG, "Haftalık rapor worker başarıyla zamanlandı")
+        } catch (e: Exception) {
+            Log.e(TAG, "Haftalık rapor worker hatası: ${e.message}", e)
+        }
+    }
+
+    private fun testHaftalikRapor() {
+        try {
+            Log.d(TAG, "Haftalık rapor test ediliyor")
+            Toast.makeText(this, "Haftalık rapor test ediliyor...", Toast.LENGTH_SHORT).show()
+            
+            // Anlık bir çalışma isteği oluştur
+            val workRequest = OneTimeWorkRequestBuilder<HaftalikRaporWorker>().build()
+            
+            // İşi hemen çalıştır
+            WorkManager.getInstance(this).enqueue(workRequest)
+            
+            Toast.makeText(this, "Haftalık rapor bildirimi birkaç saniye içinde gelecek", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Log.e(TAG, "Haftalık rapor test hatası: ${e.message}", e)
+            Toast.makeText(this, "Test çalıştırılamadı: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
